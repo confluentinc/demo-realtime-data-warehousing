@@ -624,6 +624,13 @@ Experiment to your heart's desire with the data in Databricks. For example, you 
 
 ---
 
+## CONGRATULATIONS
+
+Congratulations on building your streaming data pipelines for realtime data warehousing scenario in Confluent Cloud! Your complete pipeline should resemble the following one.
+![Alt Text](images/Stream-Lineage.gif)
+
+---
+
 ## Cleanup
 
 **Delete everything you provisioned** in this lab to avoid further usage charges. If you want to keep your work but minimize uptime cost, pause your connectors.
