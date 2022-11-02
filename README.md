@@ -19,6 +19,16 @@ Learn how Confluent’s modern approach to streaming data pipelines breaks down 
 
 ---
 
+## Architecture Diagram
+
+This demo utilizes two fully-managed source connectors (PostgreSQL CDC) and one fully-managed sink connector (Snowflake).
+
+<div align="center"> 
+  <img src="images/Realtime-data-warehousing.png" width =100% heigth=100%>
+</div>
+
+---
+
 ## Prerequisites
 
 Get a Confluent Cloud account if you don't have one. New accounts start with $400 in credits and do not require a credit card. [Get Started with Confluent Cloud for Free](https://www.confluent.io/confluent-cloud/tryfree/).
