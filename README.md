@@ -26,6 +26,7 @@ This demo utilizes two fully-managed source connectors (PostgreSQL CDC) and one 
 <div align="center"> 
   <img src="images/Realtime-data-warehousing.png" width =100% heigth=100%>
 </div>
+
 ---
 
 ## Prerequisites
