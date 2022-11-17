@@ -2,7 +2,7 @@
     <img src="images/confluent.png" width=50% height=50%>
 </div>
 
-# <div align="center">Real-time Data Warehousing with Confluent Cloud</div>
+# <div align="center">Realtime Data Warehousing with Confluent Cloud</div>
 
 ## <div align="center">Workshop & Lab Guide</div>
 
@@ -184,7 +184,7 @@ The `terraform apply` command will print the public IP addresses of the host EC2
    ```bash
    terraform apply myplan
    ```
-   > **Note:** \*To see what resources are created by this command, see the [`main.tf` file here](https://github.com/incubate-or-intubate/realtime-datawarehousing/tree/main/terraform/gcp).
+   > **Note:** To see what resources are created by this command, see the [`main.tf` file here](https://github.com/incubate-or-intubate/realtime-datawarehousing/tree/main/terraform/gcp).
 
 The `terraform apply` command will print the public IP addresses for the Postgres and Mysql instances it creates. You will need these to configure the connectors.
 
@@ -466,7 +466,6 @@ If all is well, it's time to transform and join your data using ksqlDB. Ensure y
     VALUE_FORMAT='JSON_SR'
     ) AS
         SELECT
-            o.order_key AS `order_key`,
             o.order_id AS `order_id`,
             p.product_id AS `product_id`,
             p.`size` AS `size`,
@@ -483,11 +482,11 @@ If all is well, it's time to transform and join your data using ksqlDB. Ensure y
             c.zip_code AS `zip_code`,
             c.country AS `country`,
             c.country_code AS `country_code`
-        FROM orders_composite o
+        FROM orders_rekeyed o
             JOIN products p ON o.product_id = p.product_id
             JOIN customers_enriched c ON o.customer_id = c.id
-    PARTITION BY o.order_key
-   EMIT CHANGES;
+    PARTITION BY o.order_id
+    EMIT CHANGES;
    ```
 1. Verify `orders_enriched` stream is populated correctly and then hit **Stop**.
 
@@ -495,7 +494,7 @@ If all is well, it's time to transform and join your data using ksqlDB. Ensure y
    SELECT * FROM orders_enriched EMIT CHANGES;
    ```
 
-   > **Note:** \*We need a stream to 'hydrate' our data warehouse once the sink connector is set up.
+   > **Note:** We need a stream to 'hydrate' our data warehouse once the sink connector is set up.
 
 Verify that you have a working ksqlDB topology. You can inspect it by selecting the **Flow** tab in the ksqlDB cluster. Check to see that records are populating the `orders_enriched` kstream.
 
@@ -512,7 +511,7 @@ You're now ready to sink data to your chosen warehouse. Expand the appropriate s
 
 1. Locate your JDBC/ODBC details. Select your cluster. Expand the **Advanced** section and select the **JDBC/ODBC** tab. Paste the values for **Server Hostname** and **HTTP Path** to your `env.sh` file under `DATABRICKS_SERVER_HOSTNAME` and `DATABRICKS_HTTP_PATH`.
 
-   > **Note:** \*If you don't yet have an S3 bucket, AWS Key/secret, or Databricks Access token as described in the Prerequisites, create and/or gather them now.
+   > **Note:** If you don't yet have an S3 bucket, AWS Key/secret, or Databricks Access token as described in the Prerequisites, create and/or gather them now.
 
 1. Create your Databricks Delta Lake Sink Connector. Select **Data integration > Connectors** from the left-hand menu and search for the connector. Select its tile and configure it using the following settings.
 
