@@ -1,22 +1,26 @@
-# Passed by providing the env var TF_VAR_GCP_PROJECT
-variable "GCP_PROJECT" {
-  type = string
-}
-# Passed by providing the env var TF_VAR_GCP_PROJECT
-variable "GCP_CREDENTIALS" {
-  type = string
-}
 provider "google" {
     project = var.GCP_PROJECT
-    region  = "us-east1"
-    zone    = "us-east1-c"
-    credentials = var.GCP_CREDENTIALS
+    region  = "us-west1"
+    zone    = "us-west1-b"
+    credentials = var.GCP_CREDENTIALS 
 }
+# ------------------------------------------------------
+# Local variables
+# ------------------------------------------------------
+locals {
+    num_instances = 1
+}
+# ------------------------------------------------------
+# Basic networking
+# ------------------------------------------------------
 data "google_compute_network" "default" {
     name = "default"
 }
+resource "random_id" "firewall_id" {
+    byte_length = 4
+}
 resource "google_compute_firewall" "postgres" {
-    name = "rt-dwh-postgres-firewall"
+    name = "rt-dwh-postgres-firewall-${random_id.firewall_id.hex}"
     network = data.google_compute_network.default.name
     source_ranges = [ "0.0.0.0/0" ]
     direction = "INGRESS"
@@ -25,22 +29,23 @@ resource "google_compute_firewall" "postgres" {
         ports = [ "5432" ]
     }
 }
-resource "google_compute_firewall" "mysql" {
-    name = "rt-dwh-mysql-firewall"
-    network = data.google_compute_network.default.name
-    source_ranges = [ "0.0.0.0/0" ]
-    direction = "INGRESS"
-    allow {
-        protocol = "tcp"
-        ports = [ "3306" ]
-    }
-}
+# ------------------------------------------------------
+# Intance os
+# ------------------------------------------------------
 data "google_compute_image" "os" {
     project = "centos-cloud"
     family = "centos-7"
 }
-resource "google_compute_instance" "postgres" {
-    name = "rt-dwh-postgres"
+# ------------------------------------------------------
+# 'Customers' instance
+# ------------------------------------------------------
+resource "random_id" "customers_id" {
+    count = local.num_instances
+    byte_length = 4
+}
+resource "google_compute_instance" "postgres_customers" {
+    count = local.num_instances
+    name = "rt-dwh-postgres-customers-${random_id.customers_id[count.index].hex}"
     machine_type = "e2-standard-2"
     boot_disk {
         initialize_params {
@@ -52,11 +57,19 @@ resource "google_compute_instance" "postgres" {
         access_config {}
     }
     metadata = {
-        startup-script = file("../scripts/pg_commands.sh")
+        startup-script = file("../scripts/pg_customers_bootstrap.sh")
     }
 }
-resource "google_compute_instance" "mysql" {
-    name = "rt-dwh-mysql"
+# ------------------------------------------------------
+# 'Products' instance
+# ------------------------------------------------------
+resource "random_id" "products_id" {
+    count = local.num_instances
+    byte_length = 4
+}
+resource "google_compute_instance" "postgres_products" {
+    count = local.num_instances
+    name = "rt-dwh-postgres-products-${random_id.products_id[count.index].hex}"
     machine_type = "e2-standard-2"
     boot_disk {
         initialize_params {
@@ -68,6 +81,6 @@ resource "google_compute_instance" "mysql" {
         access_config {}
     }
     metadata = {
-        startup-script = file("../scripts/ms_commands.sh")
+        startup-script = file("../scripts/pg_products_bootstrap.sh")
     }
 }
