@@ -49,7 +49,8 @@ This repo uses Docker and Terraform to deploy your source databases to a cloud p
   - A test project in which you can create resources
   - A user account with a JSON Key file and permission to create resources
 - Azure
-  - Coming in a future version
+  - A Service Principal account
+  - A SSH key-pair
 
 To sink streaming data to your warehouse, we support Snowflake and Databricks. This repo assumes you can have set up either account and are familiar with the basics of using them.
 
