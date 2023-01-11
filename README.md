@@ -144,6 +144,8 @@ The next steps vary slightly for each cloud provider. Expand the appropriate sec
    ```bash
    cd terraform/aws
    ```
+1. Log into your AWS account through command line.
+
 1. Initialize Terraform within the directory.
    ```bash
    terraform init
@@ -160,7 +162,7 @@ The next steps vary slightly for each cloud provider. Expand the appropriate sec
 
    > **Note:** _Read the `main.tf` configuration file [to see what will be created](./terraform/aws/main.tf)._
 
-The `terraform apply` command will print the public IP addresses of the host EC2 instances for your Postgres and Mysql services. You'll need these later to configuring the source connectors.
+The `terraform apply` command will print the public IP addresses of the host EC2 instances for your Postgres services. You'll need these later to configuring the source connectors.
 
 </details>
 <br>
@@ -186,14 +188,40 @@ The `terraform apply` command will print the public IP addresses of the host EC2
    ```
    > **Note:** To see what resources are created by this command, see the [`main.tf` file here](https://github.com/incubate-or-intubate/realtime-datawarehousing/tree/main/terraform/gcp).
 
-The `terraform apply` command will print the public IP addresses for the Postgres and Mysql instances it creates. You will need these to configure the connectors.
+The `terraform apply` command will print the public IP addresses for the Postgres instances it creates. You will need these to configure the connectors.
 
 </details>
 <br>
 
 <details>
     <summary><b>Azure</b></summary>
-Coming Soon!
+
+1. Navigate to the Azure directory for Terraform.
+   ```bash
+   cd terraform/azure
+   ```
+1. Log into Azure account through CLI.
+
+   > **Note** Follow [this](https://developer.hashicorp.com/terraform/tutorials/azure-get-started/azure-build) guide to create the Service Principal to get the ID/Token to use via Terraform.
+
+1. Create a SSH key pair and save it to `~/.ssh/rtdwkey`.
+
+1. Initialize Terraform within the directory.
+   ```bash
+   terraform init
+   ```
+1. Create the Terraform plan.
+   ```bash
+   terraform plan --out=myplan
+   ```
+1. Apply the plan and create the infrastructure.
+   ```bash
+   terraform apply myplan
+   ```
+   > **Note:** To see what resources are created by this command, see the [`main.tf` file here](https://github.com/incubate-or-intubate/realtime-datawarehousing/tree/main/terraform/azure).
+
+The `terraform apply` command will print the public IP addresses for the Postgres instances it creates. You will need these to configure the connectors.
+
 </details>
 <br>
 
@@ -654,7 +682,7 @@ Congratulations on building your streaming data pipelines for realtime data ware
 
 ### Terraform
 
-Use `terraform destroy` to clear out your cloud resources
+Use `terraform apply -destroy` to clear out your cloud resources
 
 ### Databricks and Snowflake
 
