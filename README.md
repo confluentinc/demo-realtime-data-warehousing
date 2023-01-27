@@ -23,6 +23,7 @@ and govern real-time data flows to and from your data warehouse. Use fresh, enri
 and analytical use cases.
 
 To learn more about Confluent’s solution, visit the [Data Warehouse streaming pipelines page](https://www.confluent.io/use-case/data-warehouse/).
+
 ---
 
 ## Architecture Diagram
