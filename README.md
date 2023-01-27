@@ -8,15 +8,21 @@
 
 ## Background
 
-Data pipelines continue to do the heavy-lifting in data integration. Yet, despite their criticality to the data value stream, they have not evolved fundamentally in the last few decades. Most organizations struggle to capture the enormous potential of their data assets as they’re locked away behind siloed applications and fragmented data estates.
-This demo aims to walk you through building streaming data pipelines with Confluent Cloud. You'll learn about
+To turn data into insight, organizations often run ETL or ELT pipelines from operational databases into a data warehouse.
+However, ETL and ELT are built around batch processes, which result in low-fidelity snapshots, inconsistencies, and data
+systems with stale information—making any subsequent use of the data instantly outdated. Unlocking real-time insights
+requires a streaming architecture that’s continuously ingesting, processing, and provisioning data in real time. 
+This demo walks you through building streaming data pipelines with Confluent Cloud. You'll learn about: 
 
 - Confluent’s fully managed PostgresSQL CDC Source connector to stream customer data in real time to Confluent Cloud
 - ksqlDB to process and enrich data in real time, generating a unified view of customers’ shopping habits
-- Loading the enriched data into Snowflake using the fully managed sink connector for subsequent analytics and reporting
+- A fully managed sink connector to load the enriched data into Snowflake for subsequent analytics and reporting
 
-Learn how Confluent’s modern approach to streaming data pipelines breaks down data silos, enables organizations with fully governed real-time data flows, and enriches data in flight. Power real-time operational and analytical use cases in minutes.
+Start streaming on-premises, hybrid, and multicloud data in minutes. Confluent streaming data pipelines connect, process,
+and govern real-time data flows to and from your data warehouse. Use fresh, enriched data to power real-time operational
+and analytical use cases.
 
+To learn more about Confluent’s solution, visit the [Data Warehouse streaming pipelines page](https://www.confluent.io/use-case/data-warehouse/).
 ---
 
 ## Architecture Diagram
