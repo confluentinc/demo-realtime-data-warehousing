@@ -175,9 +175,12 @@ This demo uses Terraform and bash scripting to create and teardown infrastructur
    > **Note:** If your Snowflake account isn't in AWS-US-West-2 refer to [doc](https://docs.snowflake.com/en/user-guide/admin-account-identifier#snowflake-region-ids) to identify your account locator.
 
 1. Update your `.env` file and add the newly created credentials for the following variables
+
+   ```bash
    export SNOWFLAKE_USER="tf-snow"
    export SNOWFLAKE_PRIVATE_KEY_PATH="../../snowflake/snowflake_tf_snow_key.p8"
    export SNOWFLAKE_ACCOUNT="YOUR_ACCOUNT_LOCATOR"
+   ```
 
 1. The `tf-snow` user account will be used by Terraform to create the following resources in Snowflake. All these resources will be deleted at the end of the demo when we run `terraform apply -destroy`. However, `tf-snow` won't get deleted.
    - A new user account named `TF_DEMO_USER` and a new public and private key pair.
