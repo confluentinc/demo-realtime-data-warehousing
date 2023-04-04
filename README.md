@@ -11,8 +11,8 @@
 To turn data into insight, organizations often run ETL or ELT pipelines from operational databases into a data warehouse.
 However, ETL and ELT are built around batch processes, which result in low-fidelity snapshots, inconsistencies, and data
 systems with stale information—making any subsequent use of the data instantly outdated. Unlocking real-time insights
-requires a streaming architecture that’s continuously ingesting, processing, and provisioning data in real time. 
-This demo walks you through building streaming data pipelines with Confluent Cloud. You'll learn about: 
+requires a streaming architecture that’s continuously ingesting, processing, and provisioning data in real time.
+This demo walks you through building streaming data pipelines with Confluent Cloud. You'll learn about:
 
 - Confluent’s fully managed PostgresSQL CDC Source connector to stream customer data in real time to Confluent Cloud
 - ksqlDB to process and enrich data in real time, generating a unified view of customers’ shopping habits
@@ -62,17 +62,29 @@ This repo uses Docker and Terraform to deploy your source databases to a cloud p
 To sink streaming data to your warehouse, we support Snowflake and Databricks. This repo assumes you can have set up either account and are familiar with the basics of using them.
 
 - Snowflake
-  - Your account must reside in the same region as your Confluent Cloud environment
+
+  - Create a free account on Snowflake [website](https://www.snowflake.com/en/).
+  - Your account must reside in the same region as your Confluent Cloud environment. This demo is configured for aws-us-west-2.
+
 - Databricks _(AWS only)_
+
   - Your account must reside in the same region as your Confluent Cloud environment
   - You'll need an S3 bucket the Delta Lake Sink Connector can use to stage data (detailed in the link below)
   - Review [Databricks' documentation to ensure proper setup](https://docs.confluent.io/cloud/current/connectors/cc-databricks-delta-lake-sink/databricks-aws-setup.html)
 
+- Confluent Cloud
+
+1. Sign up for a Confluent Cloud account [here](https://www.confluent.io/get-started/).
+1. After verifying your email address, access Confluent Cloud sign-in by navigating [here](https://confluent.cloud).
+1. When provided with the _username_ and _password_ prompts, fill in your credentials.
+
+   > **Note:** If you're logging in for the first time you will see a wizard that will walk you through the some tutorials. Minimize this as you will walk through these steps in this guide.
+
 ---
 
-## Step-by-Step
+## Setup
 
-### Confluent Cloud Components
+This demo uses Terraform and bash scripting to create and teardown infrastructure and resources.
 
 1. Clone and enter this repo.
 
@@ -85,63 +97,101 @@ To sink streaming data to your warehouse, we support Snowflake and Databricks. T
 
    ```bash
    cat << EOF > env.sh
-   # Confluent Creds
-   export BOOTSTRAP_SERVERS="<replace>"
-   export KAFKA_KEY="<replace>"
-   export KAFKA_SECRET="<replace>"
-   export SASL_JAAS_CONFIG="org.apache.kafka.common.security.plain.PlainLoginModule required username='$KAFKA_KEY' password='$KAFKA_SECRET';"
-   export SCHEMA_REGISTRY_URL="<replace>"
-   export SCHEMA_REGISTRY_KEY="<replace>"
-   export SCHEMA_REGISTRY_SECRET="<replace>"
-   export SCHEMA_REGISTRY_BASIC_AUTH_USER_INFO="$SCHEMA_REGISTRY_KEY:$SCHEMA_REGISTRY_SECRET"
-   export BASIC_AUTH_CREDENTIALS_SOURCE="USER_INFO"
+   CONFLUENT_CLOUD_EMAIL=<replace>
+   CONFLUENT_CLOUD_PASSWORD=<replace>
+
+   CCLOUD_API_KEY=api-key
+   CCLOUD_API_SECRET=api-secret
+   CCLOUD_BOOTSTRAP_ENDPOINT=kafka-cluster-endpoint
+
+   CCLOUD_SCHEMA_REGISTRY_API_KEY=sr-key
+   CCLOUD_SCHEMA_REGISTRY_API_SECRET=sr-secret
+   CCLOUD_SCHEMA_REGISTRY_URL=sr-cluster-endpoint
 
    # AWS Creds for TF
    export AWS_ACCESS_KEY_ID="<replace>"
    export AWS_SECRET_ACCESS_KEY="<replace>"
-   export AWS_DEFAULT_REGION="us-east-2" # You can change this, but make sure it's consistent
+   export AWS_DEFAULT_REGION="us-west-2"
 
    # GCP Creds for TF
    export TF_VAR_GCP_PROJECT=""
    export TF_VAR_GCP_CREDENTIALS=""
 
-   # Databricks
-   export DATABRICKS_SERVER_HOSTNAME="<replace>"
-   export DATABRICKS_HTTP_PATH="<replace>"
-   export DATABRICKS_ACCESS_TOKEN="<replace>"
-   export DELTA_LAKE_STAGING_BUCKET_NAME="<replace>"
+   POSTGRES_CUSTOMERS_ENDPOINT=postgres-customers
+   POSTGRES_PRODUCTS_ENDPOINT=postgres-products
 
-   # Snowflake
-   SF_PUB_KEY="<replace>"
-   SF_PVT_KEY="<replace>"
+   export TF_VAR_confluent_cloud_api_key="<replace>"
+   export TF_VAR_confluent_cloud_api_secret="<replace>"
+
+   export SNOWFLAKE_USER="tf-snow"
+   export SNOWFLAKE_PRIVATE_KEY_PATH="~/.ssh/snowflake_tf_snow_key.p8"
+   export SNOWFLAKE_ACCOUNT="YOUR_ACCOUNT_LOCATOR"
+   SF_PVT_KEY=snowflake-private-key
    EOF
    ```
 
-   > **Note:** _Run `source env.sh` at any time to update these values in your terminal session. Do NOT commit this file to a GitHub repo._
+   > **Note:** _Run `source .env` at any time to update these values in your terminal session. Do NOT commit this file to a GitHub repo._
 
-1. Create a cluster in Confluent Cloud. The Basic cluster type will suffice for this tutorial.
+### Confluent Cloud
 
-   - [Create a Cluster in Confluent Cloud](https://docs.confluent.io/cloud/current/clusters/create-cluster.html).
-   - Select **Cluster overview > Cluster settings**. Paste the value for **Bootstrap server** into your `env.sh` file under `BOOTSTRAP_SERVERS`.
+1. Create Confluent Cloud API keys by following [this](https://registry.terraform.io/providers/confluentinc/confluent/latest/docs/guides/sample-project#summary) guide.
 
-1. [Create an API Key pair](https://docs.confluent.io/cloud/current/access-management/authenticate/api-keys/api-keys.html#ccloud-api-keys) for authenticating to the cluster.
+   > **Note:** This is different than Kafka cluster API keys.
 
-   - Paste the values for the key and secret into `KAFKA_KEY` and `KAFKA_SECRET` in your `env.sh` file.
+1. Update your `.env` file and add the newly created credentials for the following variables
+   TF_VAR_confluent_cloud_api_key
+   TF_VAR_confluent_cloud_api_secret
 
-1. [Enable Schema Registry](https://docs.confluent.io/cloud/current/get-started/schema-registry.html#enable-sr-for-ccloud)
+### Snowflake
 
-   - Select the **Schema Registry** tab in your environment and locate **API endpoint**. Paste the endpoint value to your `env.sh` file under `SCHEMA_REGISTRY_URL`.
+1. Navigate to the Snowflake directory.
+   ```bash
+   cd demo-realtime-data-warehousing/snowflake
+   ```
+1. Create an RSA key for Authentication. This creates the private and public keys we use to authenticate the service account we will use for Terraform.
+   ```bash
+   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out snowflake_tf_snow_key.p8 -nocrypt
+   openssl rsa -in snowflake_tf_snow_key.p8 -pubout -out snowflake_tf_snow_key.pub
+   ```
+1. Log in to the Snowflake console and create the user account by running the following command as the `ACCOUNTADMIN` role.
 
-1. [Create an API Key for authenticating to Schema Registry](https://docs.confluent.io/cloud/current/get-started/schema-registry.html#create-an-api-key-for-ccloud-sr).
+   But first:
 
-   - Paste the key and secret into your `env.sh` file under `SCHEMA_REGISTRY_KEY` and `SCHEMA_REGISTRY_SECRET`.
+   - Copy the text contents of the `snowflake_tf_snow_key.pub` file, starting after the PUBLIC KEY header, and stopping just before the PUBLIC KEY footer.
+   - Paste over the RSA_PUBLIC_KEY_HERE label (shown below).
 
-1. [Create a ksqlDB cluster](https://docs.confluent.io/cloud/current/get-started/ksql.html#create-a-ksql-cloud-cluster-in-ccloud).
-   - Allow some time for this cluster to provision. This is a good opportunity to stand up and stretch.
+1. Execute both of the following SQL statements to create the User and grant it access to the `SYSADMIN` and `SECURITYADMIN` roles needed for account management.
 
----
+   ```sql
+   CREATE USER "tf-snow" RSA_PUBLIC_KEY='RSA_PUBLIC_KEY_HERE' DEFAULT_ROLE=PUBLIC MUST_CHANGE_PASSWORD=FALSE;
+   GRANT ROLE SYSADMIN TO USER "tf-snow";
+   GRANT ROLE SECURITYADMIN TO USER "tf-snow";
+   ```
 
-### Build your cloud infrastructure
+   > **Note:** We grant the user `SYSADMIN` and `SECURITYADMIN` privileges to keep the lab simple. An important security best practice, however, is to limit all user accounts to least-privilege access. In a production environment, this key should also be secured with a secrets management solution like Hashicorp Vault, Azure Key Vault, or AWS Secrets Manager.
+
+1. Run the following to find the `YOUR_ACCOUNT_LOCATOR` and your Snowflake Region ID values needed.
+
+   ```sql
+   SELECT current_account() as YOUR_ACCOUNT_LOCATOR, current_region() as YOUR_SNOWFLAKE_REGION_ID;
+   ```
+
+   > **Note:** If your Snowflake account isn't in AWS-US-West-2 refer to [doc](https://docs.snowflake.com/en/user-guide/admin-account-identifier#snowflake-region-ids) to identify your account locator.
+
+1. Update your `.env` file and add the newly created credentials for the following variables
+   export SNOWFLAKE_USER="tf-snow"
+   export SNOWFLAKE_PRIVATE_KEY_PATH="../../snowflake/snowflake_tf_snow_key.p8"
+   export SNOWFLAKE_ACCOUNT="YOUR_ACCOUNT_LOCATOR"
+
+1. The `tf-snow` user account will be used by Terraform to create the following resources in Snowflake. All these resources will be deleted at the end of the demo when we run `terraform apply -destroy`. However, `tf-snow` won't get deleted.
+   - A new user account named `TF_DEMO_USER` and a new public and private key pair.
+   - A warehouse named `TF_DEMO`.
+   - A database named `TF_DEMO`.
+   - All permissions needed for the demo.
+
+For troubleshooting or more information review the [doc](https://quickstarts.snowflake.com/guide/terraforming_snowflake/index.html?index=..%2F..index#2).
+
+### CSP related infrastructure
 
 The next steps vary slightly for each cloud provider. Expand the appropriate section below for directions. Remember to specify the same region as your sink target!
 
@@ -170,10 +220,8 @@ The next steps vary slightly for each cloud provider. Expand the appropriate sec
 
    > **Note:** _Read the `main.tf` configuration file [to see what will be created](./terraform/aws/main.tf)._
 
-The `terraform apply` command will print the public IP addresses of the host EC2 instances for your Postgres services. You'll need these later to configuring the source connectors.
-
-</details>
-<br>
+   </details>
+   <br>
 
 <details>
     <summary><b>GCP</b></summary>
@@ -191,12 +239,12 @@ The `terraform apply` command will print the public IP addresses of the host EC2
    terraform plan --out=myplan
    ```
 1. Apply the plan and create the infrastructure.
+
    ```bash
    terraform apply myplan
    ```
-   > **Note:** To see what resources are created by this command, see the [`main.tf` file here](https://github.com/incubate-or-intubate/realtime-datawarehousing/tree/main/terraform/gcp).
 
-The `terraform apply` command will print the public IP addresses for the Postgres instances it creates. You will need these to configure the connectors.
+   > **Note:** To see what resources are created by this command, see the [`main.tf` file here](./terraform/gcp/main.tf).
 
 </details>
 <br>
@@ -223,88 +271,103 @@ The `terraform apply` command will print the public IP addresses for the Postgre
    terraform plan --out=myplan
    ```
 1. Apply the plan and create the infrastructure.
+
    ```bash
    terraform apply myplan
    ```
-   > **Note:** To see what resources are created by this command, see the [`main.tf` file here](https://github.com/incubate-or-intubate/realtime-datawarehousing/tree/main/terraform/azure).
 
-The `terraform apply` command will print the public IP addresses for the Postgres instances it creates. You will need these to configure the connectors.
+   > **Note:** To see what resources are created by this command, see the [`main.tf` file here](./terraform/azure/main.tf).
 
 </details>
 <br>
 
+1. Write the output of `terraform` to a JSON file. The `env.sh` script will parse the JSON file to update the `.env` file.
+
+   ```bash
+   terraform output -json > ../../resources.json
+   ```
+
+   > **Note:** _Verify that the `resources.json` is created at root level of demo-realtime-data-warehousing directory._
+
+1. Run the `env.sh` script.
+   ```bash
+   ./env.sh
+   ```
+1. This script achieves the following:
+   - Creates an API key pair that will be used in connectors' configuration files for authentication purposes.
+   - Updates the `.env` file to replace the remaining variables with the newly generated values.
+
 ---
 
-### Kafka Connectors
+# Demo
 
-1. Create the topics that your source connectors need. Using the Topics menu, configure each onw with **1 partition** only.
+## Configure Source Connectors
 
-   - `postgres.customers.customers`
-   - `postgres.customers.demographics`
-   - `postgres.products.products`
-   - `postgres.products.orders`
+Confluent offers 120+ pre-built [connectors](https://www.confluent.io/product/confluent-connectors/), enabling you to modernize your entire data architecture even faster. These connectors also provide you peace-of-mind with enterprise-grade security, reliability, compatibility, and support.
 
-1. Once the topics have been created, start by creating the Debezium Postgres CDC Source Connector (for the **customers DB**). Select **Data integration > Connectors** from the left-hand menu, then search for the connector. When you find its tile, select it and configure it with the following settings, then launch it.
+### Automated Connector Configuration File Creation
 
-   ```
-   {
-   "name": "PostgresCdcSource_Customers",
-   "config": {
-      "connector.class": "PostgresCdcSource",
-      "name": "PostgresCdcSource_Customers",
-      "kafka.auth.mode": "KAFKA_API_KEY",
-      "kafka.api.key": "<copy from env file>",
-      "kafka.api.secret": "<copy from env file>",
-      "database.hostname": "<derived from Terraform output or provided>",
-      "database.port": "5432",
-      "database.user": "postgres",
-      "database.password": "rt-dwh-c0nflu3nt!",
-      "database.dbname": "postgres",
-      "database.server.name": "postgres",
-      "database.sslmode": "disable",
-      "table.include.list": "customers.customers, customers.demographics",
-      "slot.name": "sequoia",
-      "output.data.format": "JSON_SR",
-      "after.state.only": "true",
-      "output.key.format": "JSON",
-      "tasks.max": "1"
-      }
-   }
+You can use Confluent Cloud CLI to submit all the source connectors automatically.
 
+1. Run a script that uses your `.env` file to generate real connector configuration json files from the example files located in the `confluent` folder.
+
+   ```bash
+   cd demo-realtime-data-warehousing/connect
+   ./create_connector_files.sh
    ```
 
-1. Create the Debezium Postgres CDC Source Connector (for the **products DB**) by searching for it as you did above. When you find it, configure it with the following settings, then launch it.
-   ```
-   {
-      "name": "PostgresCdcSource_Products",
-      "config": {
-      "connector.class": "PostgresCdcSource",
-      "name": "PostgresCdcSource_Products",
-      "kafka.auth.mode": "KAFKA_API_KEY",
-      "kafka.api.key": "<copy from env file>",
-      "kafka.api.secret": "<copy from env file>",
-      "database.hostname": "<derived from Terraform output or provided>",
-      "database.port": "5432",
-      "database.user": "postgres",
-      "database.password": "rt-dwh-c0nflu3nt!",
-      "database.dbname": "postgres",
-      "database.server.name": "postgres",
-      "database.sslmode": "disable",
-      "table.include.list": "products.products, products.orders",
-      "slot.name": "redwoods",
-      "output.data.format": "JSON_SR",
-      "after.state.only": "true",
-      "output.key.format": "JSON",
-      "tasks.max": "1"
-      }
-   }
+### Configure Debezium Postgres CDC Source Connectors
+
+You can create the connectors either through CLI or Confluent Cloud web UI.
+
+<details>
+    <summary><b>CLI</b></summary>
+
+1. Log into your Confluent account in the CLI.
+
+   ```bash
+   confluent login --save
    ```
 
-Launch the connector. Once both are fully provisioned, check for and troubleshoot any failures that occur. Properly configured, each connector begins reading data automatically.
+1. Use your environment and your cluster.
+
+   ```bash
+   confluent environment list
+   confluent environment use <your_env_id>
+   confluent kafka cluster list
+   confluent kafka cluster use <your_cluster_id>
+   ```
+
+1. Run the following commands to create 2 Postgres CDC Source connectors.
+
+   ```bash
+   cd demo-realtime-data-warehousing/connect
+   confluent connect cluster create --config-file actual_postgres_customers_source.json
+   confluent connect cluster create --config-file actual_postgres_products_source.json
+   ```
+
+</details>
+<br>
+
+<details>
+    <summary><b>Confluent Cloud Web UI</b></summary>
+
+1. Log into Confluent Cloud by navigating to https://confluent.cloud
+1. Step into **Demo_Real_Time_Data_Warehousing** environment.
+1. If you are promoted with **Unlock advanced governance controls** screen, click on **No thanks, I will upgrade later**.
+   > **Note:** In this demo, the Essential package for Stream Governance is sufficient. However you can take a moment and review the differences between the Esstentials and Advanced packages.
+1. Step into **demo_kafka_cluster**.
+1. On the navigation menu, select **Connectors** and then **+ Add connector**.
+1. In the search bar search for **Postgres** and select the **Postgres CDC Source connector** which is a fully-managed connector.
+1. Create a new Postgres CDC Source connector and complete the required fields using `actual_postgres_customers_source.json` file.
+1. Repeat the same process and the second **Postgres CDC Source connector** using `actual_postgres_products_source.json` file.
+
+</details>
+<br>
+
+Once both are fully provisioned, check for and troubleshoot any failures that occur. Properly configured, each connector begins reading data automatically.
 
 > **Note:** _Only the `products.orders` table emits an ongoing stream of records. The others have their records produced to their topics from an initial snapshot only. After that, they do nothing more. The connector throughput will accordingly drop to zero over time._
-
-<br>
 
 ---
 
@@ -588,80 +651,72 @@ Experiment to your heart's desire with the data in Databricks. For example, you 
 
 <details>
     <summary><b>Snowflake</b></summary>
-    
-1. Follow the [source documentation](https://docs.confluent.io/cloud/current/connectors/cc-snowflake-sink.html) for full details if you wish. 
-    
-1. Create a private/public key pair for authenticating to your Snowflake account. 
-    - In a directory outside of your repo, run the following:
-    ```
-    $ openssl genrsa -out snowflake_key.pem 2048
-    $ openssl rsa -in snowflake_key.pem  -pubout -out snowflake_key.pub
-    $ export SF_PUB_KEY=`cat snowflake_key.pub | grep -v PUBLIC | tr -d '\r\n'`
-    $ export SF_PVT_KEY=`cat snowflake_key.pem | grep -v PUBLIC | tr -d '\r\n'`
-    ```
-    - Copy the values of each parameter into your `env.sh` file for easy access
-    
-1. Create a Snowflake user with permissions. Refer to the [source doc](https://docs.confluent.io/cloud/current/connectors/cc-snowflake-sink.html#creating-a-user-and-adding-the-public-key) if you need screenshots for guidance.
-    - Login to your Snowflake account and select `Worksheets` from the menu bar.
-    - In the upper-corner *of the Worksheet view*, set your role to `SECURITYADMIN`
-    - The following steps configure the role `kafka_connector` with full permissions on database `RTDW`:
-    ```
-    use role securityadmin;
-    create user confluent RSA_PUBLIC_KEY=<*SF_PUB_KEY*>
-    create role kafka_connector;
-    // Grant database and schema privileges:
-    grant usage on database RTDW to role kafka_connector;
-    grant usage on schema RTDW.PUBLIC to role kafka_connector;
-    grant create table on schema RTDW.PUBLIC to role kafka_connector;
-    grant create stage on schema RTDW.PUBLIC to role kafka_connector;
-    grant create pipe on schema RTDW.PUBLIC to role kafka_connector;
 
-    // Grant this role to the `confluent` user and make it the user's default:
-    grant role kafka_connector to user confluent;
-    alter user confluent set default_role=kafka_connector;
-    ```
+You can create the connectors either through CLI or Confluent Cloud web UI.
 
-1. To review the grants, enter:
+<details>
+    <summary><b>CLI</b></summary>
+
+1. Log into your Confluent account in the CLI.
+
+   ```bash
+   confluent login --save
    ```
-   show grants to role kafka_connector;
+
+1. Use your environment and your cluster.
+
+   ```bash
+   confluent environment list
+   confluent environment use <your_env_id>
+   confluent kafka cluster list
+   confluent kafka cluster use <your_cluster_id>
    ```
-1. Configure the SnowflakeSink connector
 
-   - Review the [connector's limitations](https://docs.confluent.io/cloud/current/connectors/cc-snowflake-sink.html#quick-start)
-   - Fill in the values using the following table:
+1. Run the following command to create Snowflake Sink connector
 
-   | **Property**                      | **Value**                 |
-   | --------------------------------- | ------------------------- |
-   | Topic to read                     | `orders_enriched`         |
-   | Input Kafka record value format   | `JSON_SR`                 |
-   | Input Kafka record hey format     | `JSON`                    |
-   | Kafka cluster authentication mode | `KAFKA_API_KEY`           |
-   | Kafka API Key                     | from `env.sh`             |
-   | Kafka API Secret                  | from `env.sh`             |
-   | Connection URL                    | for Snowflake account     |
-   | Connection user name              | `confluent`               |
-   | Private key                       | `SF_PVT_KEY` in `env.sh`. |
-   | Database name                     | `RTDW`                    |
-   | Schema name                       | `PUBLIC`                  |
-   | Topic to tables mapping           | `orders_enriched:orders`  |
-   | Tasks                             | `1`                       |
+   ```bash
+   cd demo-realtime-data-warehousing/connect
+   confluent connect cluster create --config-file actual_snowflake_sink.json
+   ```
 
-1. Once provisioning succeeds, the connector reads the `orders_enriched` topic, creates the Snowflake table `orders`, and starts populating it immediately. It may however take a few minutes for Snowflake to read the records from object storage and create the table.
+</details>
+<br>
 
-1. Run the following commands to make your warehouse active and assume the appropriate role. You will then see a few records returned in JSON format.
+<details>
+    <summary><b>Confluent Cloud Web UI</b></summary>
+
+1. Log into Confluent Cloud by navigating to https://confluent.cloud
+1. Step into **Demo_Real_Time_Data_Warehousing** environment.
+1. Step into **demo_kafka_cluster**.
+1. On the navigation menu, select **Connectors** and then **+ Add connector**.
+1. In the search bar search for **Snowflake** and select the **Snowflake Sink** which is a fully-managed connector.
+1. Create a new connector and complete the required fields using `actual_snowflake_sink.json` file.
+
+</details>
+<br>
+
+Once the connector is fully provisioned, check for and troubleshoot any failures that occur. Properly configured, each connector begins reading data automatically.
+
+1. Log into your Snowflake account.
+1. Create a new worksheet or use an existing one.
+1. Run the following commands
 
    ```sql
-   use warehouse <replace>;
-   use role kafka_connector;
-   SELECT record_content FROM rtdw.public.orders limit 100;
+   USE ROLE TF_DEMO_SVC_ROLE;
+   USE WAREHOUSE TF_DEMO;
+   ALTER WAREHOUSE TF_DEMO RESUME;
+   USE DATABASE TF_DEMO;
+
+   SELECT * FROM "TF_DEMO"."PUBLIC".ORDERS_ENRICHED LIMIT 100;
    ```
 
 1. You can flatten data in Snowflake if you wish. Use [Snowflake's documentation](https://docs.snowflake.com/en/user-guide/json-basics-tutorial-query.html). You can also query JSON data directly in Snowflake by naming the column and specifying columns of interest. For example:
 
    ```sql
-   SELECT RECORD_CONTENT:email from rtdw.public.orders limit 100;
-
+   SELECT RECORD_CONTENT:email FROM "TF_DEMO"."PUBLIC".ORDERS_ENRICHED LIMIT 100;
    ```
+
+   > **Note**: To things simple in this demo `TF_DEMO_SVC_ROLE` is given `SECURITYADMIN` level permissions. However, you should always follow best practices in production environment.
 
 </details>
 
@@ -676,25 +731,32 @@ Congratulations on building your streaming data pipelines for realtime data ware
 
 ---
 
-## Cleanup
+# Teardown
 
-**Delete everything you provisioned** in this lab to avoid further usage charges. If you want to keep your work but minimize uptime cost, pause your connectors.
+You want to delete any resources that were created during the demo so you don't incur additional charges.
 
-### Confluent Cloud resources to remove
+## Infrastructure
 
-- ksqlDB Cluster
-- Delta Lake Sink Connector
-- Postgres CDC Source Connector
-- Mysql CDC Source Connector
-- Kafka Cluster
+1. Run the following command to delete all connectors
 
-### Terraform
+   ```bash
+   cd demo-realtime-data-warehousing
+   ./teardown_connectors.sh
+   ```
 
-Use `terraform apply -destroy` to clear out your cloud resources
+1. Run the following command to delete all resources created by Terraform
+   ```bash
+   terraform apply -destory
+   ```
 
 ### Databricks and Snowflake
 
 If you created instances of either Databricks and Snowflake solely to run this lab, you can remove them.
+
+1. Log into Snowflake account and use a worksheet to delete `tf-snow` by running
+   ```sql
+   DROP USER "tf-snow";
+   ```
 
 ---
 
