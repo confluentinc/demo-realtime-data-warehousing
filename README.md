@@ -104,10 +104,6 @@ This demo uses Terraform and bash scripting to create and teardown infrastructur
    CCLOUD_API_SECRET=api-secret
    CCLOUD_BOOTSTRAP_ENDPOINT=kafka-cluster-endpoint
 
-   CCLOUD_SCHEMA_REGISTRY_API_KEY=sr-key
-   CCLOUD_SCHEMA_REGISTRY_API_SECRET=sr-secret
-   CCLOUD_SCHEMA_REGISTRY_URL=sr-cluster-endpoint
-
    # AWS Creds for TF
    export AWS_ACCESS_KEY_ID="<replace>"
    export AWS_SECRET_ACCESS_KEY="<replace>"
