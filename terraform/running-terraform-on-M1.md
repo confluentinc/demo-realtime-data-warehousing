@@ -33,25 +33,30 @@ We used the following workaround instead:
 1. Remove any terraform binaries in your `PATH`. If you have it installed multiple times, use 
 `which terraform` to find and remove each reference.
 
-1. Install this [provider helper](https://github.com/kreuzwerker/m1-terraform-provider-helper) using Homebrew:
+2. Install this [provider helper](https://github.com/kreuzwerker/m1-terraform-provider-helper) using Homebrew:
 ```
 brew install kreuzwerker/taps/m1-terraform-provider-helper
 ```
 
-1. Then (re)install Terraform 
+3. Then (re)install Terraform 
 ```
 brew tap hashicorp/tap
 brew install hashicorp/tap/terraform
 ```
 
-1. Now install the hashicorp/template version v2.2.0
+4. Activate the helper!
+```
+m1-terraform-provider-helper activate
+```
+
+5. Now install the hashicorp/template version v2.2.0
 ```
 m1-terraform-provider-helper install hashicorp/template -v v2.2.0
 ```
 
-1. Check the active version
+6. Check the active version
 ```
 terraform --version
 ```
 
-1. Return to the cloud directory you are using and try the `terraform init` command.
+7. Return to the cloud directory you are using and try the `terraform init` command.
